@@ -13,28 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.r2dbc.adba;
+package io.r2dbc.adba.mock;
 
-import io.r2dbc.adba.mock.MockDataSource;
-import io.r2dbc.spi.ConnectionFactory;
-import io.r2dbc.spi.ConnectionFactoryMetadata;
-import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import jdk.incubator.sql2.Transaction;
 
 /**
- * Unit tests for {@link AdbaConnectionFactory}.
+ * Mock implementation of {@link Transaction}.
  *
  * @author Mark Paluch
  */
-class AdbaConnectionFactoryUnitTests {
+public class MockTransaction implements Transaction {
 
-    @Test
-    void shouldReportMetadata() {
+    private boolean rollbackOnly;
 
-        ConnectionFactory connectionFactory = AdbaAdapter.fromDataSource(MockDataSource.newMockBuilder().build());
-        ConnectionFactoryMetadata metadata = connectionFactory.getMetadata();
+    @Override
+    public boolean setRollbackOnly() {
 
-        assertThat(metadata.getName()).isEqualTo("ADBA Adapter");
+        if (rollbackOnly) {
+            return false;
+        }
+        return rollbackOnly = true;
+    }
+
+    @Override
+    public boolean isRollbackOnly() {
+        return rollbackOnly;
     }
 }

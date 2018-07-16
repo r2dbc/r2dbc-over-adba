@@ -13,28 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.r2dbc.adba;
-
-import io.r2dbc.adba.mock.MockDataSource;
-import io.r2dbc.spi.ConnectionFactory;
-import io.r2dbc.spi.ConnectionFactoryMetadata;
-import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
+package io.r2dbc.adba.mock;
 
 /**
- * Unit tests for {@link AdbaConnectionFactory}.
+ * Minimal interface for exposing and setting the SQL behind an operation.
+ * <p>
+ * Implemented by {@link jdk.dynalink.Operation} objects.
  *
  * @author Mark Paluch
  */
-class AdbaConnectionFactoryUnitTests {
+public interface SqlAware {
 
-    @Test
-    void shouldReportMetadata() {
+    /**
+     * Set the SQL that is associated with this object.
+     *
+     * @param sql the SQL string.
+     */
+    void setSql(String sql);
 
-        ConnectionFactory connectionFactory = AdbaAdapter.fromDataSource(MockDataSource.newMockBuilder().build());
-        ConnectionFactoryMetadata metadata = connectionFactory.getMetadata();
-
-        assertThat(metadata.getName()).isEqualTo("ADBA Adapter");
-    }
+    /**
+     * @return the SQL string associated with this object, can be {@literal null}.
+     */
+    String getSql();
 }

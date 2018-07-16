@@ -125,7 +125,7 @@ class AdbaStatement implements Statement {
 
                 ParameterizedRowCountOperation<Number> countOperation = connection.rowCountOperation(sql);
 
-                return bindings.getCurrent().bind(countOperation);
+                return bindings.getCurrent().bind(countOperation).apply(jdk.incubator.sql2.Result.RowCount::getCount);
             }).map(Number::intValue);
         }
 
