@@ -68,7 +68,7 @@ class AdbaConnection implements Connection {
     }
 
     @Override
-    public Batch createBatch() {
+    public Batch<?> createBatch() {
         throw new UnsupportedOperationException();
     }
 

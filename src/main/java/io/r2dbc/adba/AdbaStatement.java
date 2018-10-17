@@ -44,7 +44,7 @@ import java.util.stream.Collector.Characteristics;
  *
  * @author Mark Paluch
  */
-class AdbaStatement implements Statement {
+class AdbaStatement implements Statement<AdbaStatement> {
 
     private final jdk.incubator.sql2.Connection connection;
     private final String sql;
@@ -78,6 +78,46 @@ class AdbaStatement implements Statement {
     }
 
     @Override
+    public AdbaStatement bind(int index, boolean value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, byte value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, char value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, double value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, float value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, int value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, long value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
+    public AdbaStatement bind(int index, short value) {
+        return bind(index, (Object) value);
+    }
+
+    @Override
     public AdbaStatement bind(Object identifier, Object value) {
 
         this.bindings.getCurrent().add((String) identifier, Optional.of(value));
@@ -85,20 +125,24 @@ class AdbaStatement implements Statement {
     }
 
     @Override
-    public AdbaStatement bind(Integer index, Object value) {
+    public AdbaStatement bind(int index, Object value) {
 
         this.bindings.getCurrent().add(index, Optional.of(value));
         return this;
     }
 
     @Override
-    public AdbaStatement bindNull(Object identifier, Object type) {
+    public AdbaStatement bindNull(Object identifier, Class<?> aClass) {
 
-        if (identifier instanceof Integer) {
-            this.bindings.getCurrent().add((Integer) identifier, Optional.empty());
-        } else {
-            this.bindings.getCurrent().add((String) identifier, Optional.empty());
-        }
+        this.bindings.getCurrent().add((String) identifier, Optional.empty());
+
+        return this;
+    }
+
+    @Override
+    public AdbaStatement bindNull(int index, Class<?> aClass) {
+
+        this.bindings.getCurrent().add(index, Optional.empty());
 
         return this;
     }
