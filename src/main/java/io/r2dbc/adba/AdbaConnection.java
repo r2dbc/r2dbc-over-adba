@@ -18,7 +18,6 @@ package io.r2dbc.adba;
 import io.r2dbc.spi.Batch;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.IsolationLevel;
-import io.r2dbc.spi.Mutability;
 import reactor.core.publisher.Mono;
 
 /**
@@ -100,11 +99,6 @@ class AdbaConnection implements Connection {
 
     @Override
     public Mono<Void> setTransactionIsolationLevel(IsolationLevel isolationLevel) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Mono<Void> setTransactionMutability(Mutability mutability) {
         throw new UnsupportedOperationException();
     }
 }

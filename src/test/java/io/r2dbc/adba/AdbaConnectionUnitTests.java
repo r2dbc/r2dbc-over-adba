@@ -16,7 +16,6 @@
 package io.r2dbc.adba;
 
 import io.r2dbc.spi.IsolationLevel;
-import io.r2dbc.spi.Mutability;
 import jdk.incubator.sql2.Connection;
 import jdk.incubator.sql2.Operation;
 import jdk.incubator.sql2.Submission;
@@ -125,10 +124,5 @@ class AdbaConnectionUnitTests {
     @Test
     void setTransactionIsolationLevel() {
         assertThatThrownBy(() -> sut.setTransactionIsolationLevel(IsolationLevel.READ_COMMITTED)).isInstanceOf(UnsupportedOperationException.class);
-    }
-
-    @Test
-    void setTransactionMutability() {
-        assertThatThrownBy(() -> sut.setTransactionMutability(Mutability.READ_ONLY)).isInstanceOf(UnsupportedOperationException.class);
     }
 }
