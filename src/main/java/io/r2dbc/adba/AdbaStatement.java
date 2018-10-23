@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.r2dbc.adba;
 
 import io.r2dbc.spi.Result;
@@ -46,29 +47,16 @@ import java.util.stream.Collector.Characteristics;
  */
 class AdbaStatement implements Statement<AdbaStatement> {
 
-    private final jdk.incubator.sql2.Connection connection;
-    private final String sql;
     private final Bindings bindings = new Bindings();
+
+    private final jdk.incubator.sql2.Connection connection;
+
+    private final String sql;
 
     private AdbaStatement(Connection connection, String sql) {
 
         this.connection = connection;
         this.sql = sql;
-    }
-
-    /**
-     * Creates a {@link AdbaStatement} given {@link Connection} and {@code sql}.
-     *
-     * @param connection must not be {@literal null}.
-     * @param sql        must not be {@literal null}.
-     * @return the {@link AdbaStatement} for {@link Connection} and {@code sql}
-     */
-    static AdbaStatement create(Connection connection, String sql) {
-
-        Assert.notNull(connection, "Connection must not be null!");
-        Assert.notNull(sql, "SQL must not be null!");
-
-        return new AdbaStatement(connection, sql);
     }
 
     @Override
@@ -149,12 +137,22 @@ class AdbaStatement implements Statement<AdbaStatement> {
 
     @Override
     public Mono<AdbaResult> execute() {
-        return executeReturningGeneratedKeys();
+        return Mono.just(new AdbaResult());
     }
 
-    @Override
-    public Mono<AdbaResult> executeReturningGeneratedKeys() {
-        return Mono.just(new AdbaResult());
+    /**
+     * Creates a {@link AdbaStatement} given {@link Connection} and {@code sql}.
+     *
+     * @param connection must not be {@literal null}.
+     * @param sql        must not be {@literal null}.
+     * @return the {@link AdbaStatement} for {@link Connection} and {@code sql}
+     */
+    static AdbaStatement create(Connection connection, String sql) {
+
+        Assert.notNull(connection, "Connection must not be null!");
+        Assert.notNull(sql, "SQL must not be null!");
+
+        return new AdbaStatement(connection, sql);
     }
 
     /**
@@ -177,26 +175,26 @@ class AdbaStatement implements Statement<AdbaStatement> {
         public <T> Publisher<T> map(BiFunction<Row, RowMetadata, ? extends T> f) {
 
             Collector<jdk.incubator.sql2.Result.RowColumn, List<T>, List<T>> collector = Collector.of(ArrayList::new,
-                    (objects, o) -> {
+                (objects, o) -> {
 
 
-                        AdbaRow row = AdbaRow.create(o);
-                        T mapped = f.apply(row, row);
+                    AdbaRow row = AdbaRow.create(o);
+                    T mapped = f.apply(row, row);
 
-                        if (mapped == null) {
-                            return;
-                        }
+                    if (mapped == null) {
+                        return;
+                    }
 
-                        objects.add(mapped);
-                    }, (left, right) -> {
-                        left.addAll(right);
-                        return left;
-                    }, it -> it, Characteristics.IDENTITY_FINISH);
+                    objects.add(mapped);
+                }, (left, right) -> {
+                    left.addAll(right);
+                    return left;
+                }, it -> it, Characteristics.IDENTITY_FINISH);
 
             return AdbaUtils.submitLater(() -> {
 
                 ParameterizedRowOperation<List<T>> rowOperation = connection.<List<T>>rowOperation(sql).fetchSize(100)
-                        .collect(collector);
+                    .collect(collector);
                 return bindings.getCurrent().bind(rowOperation);
             }).flatMapIterable(Function.identity());
         }
