@@ -21,31 +21,31 @@ import io.r2dbc.spi.IsolationLevel;
 import reactor.core.publisher.Mono;
 
 /**
- * R2DBC wrapper for a {@link jdk.incubator.sql2.Connection ADBA Connection}.
+ * R2DBC wrapper for a {@link jdk.incubator.sql2.Session ADBA Connection}.
  *
  * @author Mark Paluch
- * @see jdk.incubator.sql2.Connection
+ * @see jdk.incubator.sql2.Session
  */
 class AdbaConnection implements Connection {
 
-    private final jdk.incubator.sql2.Connection delegate;
+    private final jdk.incubator.sql2.Session delegate;
 
     /**
-     * Create a new {@link AdbaConnection} for an {@link jdk.incubator.sql2.Connection ADBA Connection}.
+     * Create a new {@link AdbaConnection} for an {@link jdk.incubator.sql2.Session ADBA Connection}.
      *
      * @param delegate must not be {@literal null}.
      */
-    private AdbaConnection(jdk.incubator.sql2.Connection delegate) {
+    private AdbaConnection(jdk.incubator.sql2.Session delegate) {
         this.delegate = delegate;
     }
 
     /**
-     * Create a new {@link AdbaConnection} for an {@link jdk.incubator.sql2.Connection ADBA Connection}.
+     * Create a new {@link AdbaConnection} for an {@link jdk.incubator.sql2.Session ADBA Connection}.
      *
      * @param delegate must not be {@literal null}.
-     * @return {@link AdbaConnection} for the {@link jdk.incubator.sql2.Connection ADBA Connection}.
+     * @return {@link AdbaConnection} for the {@link jdk.incubator.sql2.Session ADBA Connection}.
      */
-    public static AdbaConnection create(jdk.incubator.sql2.Connection delegate) {
+    public static AdbaConnection create(jdk.incubator.sql2.Session delegate) {
 
         Assert.notNull(delegate, "Connection must not be null!");
 
@@ -64,7 +64,7 @@ class AdbaConnection implements Connection {
 
     @Override
     public Mono<Void> commitTransaction() {
-        return AdbaUtils.executeLater(delegate::commit).then();
+        return AdbaUtils.executeLater(() -> delegate.commitMaybeRollback(delegate.transactionCompletion())).then();
     }
 
     @Override

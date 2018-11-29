@@ -15,9 +15,9 @@
  */
 package io.r2dbc.adba.mock;
 
-import jdk.incubator.sql2.Connection;
-import jdk.incubator.sql2.ConnectionProperty;
 import jdk.incubator.sql2.DataSource;
+import jdk.incubator.sql2.Session;
+import jdk.incubator.sql2.SessionProperty;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -33,17 +33,17 @@ import java.util.function.Function;
  */
 public class MockDataSource implements DataSource {
 
-    private Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier;
+    private Function<Map<SessionProperty, Object>, MockSession> connectionSupplier;
     private boolean closed;
 
     /**
-     * Creates a new {@link MockDataSource} that returns a new {@link MockConnection} on each connection request.
+     * Creates a new {@link MockDataSource} that returns a new {@link MockSession} on each connection request.
      */
     public MockDataSource() {
-        this.connectionSupplier = MockConnection::new;
+        this.connectionSupplier = MockSession::new;
     }
 
-    private MockDataSource(Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier) {
+    private MockDataSource(Function<Map<SessionProperty, Object>, MockSession> connectionSupplier) {
         this.connectionSupplier = connectionSupplier;
     }
 
@@ -57,7 +57,7 @@ public class MockDataSource implements DataSource {
     }
 
     /**
-     * Creates a new singleton {@link MockDataSource} that returns the same  {@link MockConnection} on each connect call.
+     * Creates a new singleton {@link MockDataSource} that returns the same  {@link MockSession} on each connect call.
      *
      * @return a new {@link MockDataSource}.
      */
@@ -66,17 +66,17 @@ public class MockDataSource implements DataSource {
     }
 
     @Override
-    public Connection.Builder builder() {
-        return new MockConnectionBuilder(connectionSupplier);
+    public Session.Builder builder() {
+        return new MockSessionBuilder(connectionSupplier);
     }
 
     @Override
-    public MockConnection getConnection() {
+    public MockSession getSession() {
         return connectionSupplier.apply(Collections.emptyMap());
     }
 
     @Override
-    public MockConnection getConnection(Consumer<Throwable> handler) {
+    public MockSession getSession(Consumer<Throwable> handler) {
         return connectionSupplier.apply(Collections.emptyMap());
     }
 
@@ -95,23 +95,23 @@ public class MockDataSource implements DataSource {
     /**
      * Mock implementation of {@link Connection.Builder}.
      */
-    public static class MockConnectionBuilder implements Connection.Builder {
+    public static class MockSessionBuilder implements Session.Builder {
 
-        private final Map<ConnectionProperty, Object> connectionProperties = new LinkedHashMap<>();
-        private final Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier;
+        private final Map<SessionProperty, Object> connectionProperties = new LinkedHashMap<>();
+        private final Function<Map<SessionProperty, Object>, MockSession> connectionSupplier;
 
-        private MockConnectionBuilder(Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier) {
+        private MockSessionBuilder(Function<Map<SessionProperty, Object>, MockSession> connectionSupplier) {
             this.connectionSupplier = connectionSupplier;
         }
 
         @Override
-        public Connection.Builder property(ConnectionProperty p, Object v) {
+        public Session.Builder property(SessionProperty p, Object v) {
             connectionProperties.put(p, v);
             return this;
         }
 
         @Override
-        public MockConnection build() {
+        public MockSession build() {
             return connectionSupplier.apply(new LinkedHashMap<>(connectionProperties));
         }
     }
@@ -121,7 +121,7 @@ public class MockDataSource implements DataSource {
      */
     public static class MockDataSourceBuilder {
 
-        private Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier;
+        private Function<Map<SessionProperty, Object>, MockSession> connectionSupplier;
 
         /**
          * Configure the builder to use a singleton connection. Concurrent calls to {@link Connection#connect()} are guaranteed to return the same connection instance.
@@ -130,14 +130,14 @@ public class MockDataSource implements DataSource {
          */
         public MockDataSourceBuilder singletonConnection() {
 
-            AtomicReference<MockConnection> ref = new AtomicReference<>();
+            AtomicReference<MockSession> ref = new AtomicReference<>();
 
-            Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier = cp -> {
+            Function<Map<SessionProperty, Object>, MockSession> connectionSupplier = cp -> {
 
-                MockConnection mockConnection = ref.get();
+                MockSession mockSession = ref.get();
 
-                if (mockConnection == null) {
-                    ref.compareAndSet(null, new MockConnection());
+                if (mockSession == null) {
+                    ref.compareAndSet(null, new MockSession());
                 }
 
                 return ref.get();
@@ -148,21 +148,21 @@ public class MockDataSource implements DataSource {
         }
 
         /**
-         * Configure the builder to return the provided {@link MockConnection}.
+         * Configure the builder to return the provided {@link MockSession}.
          *
          * @param connection the connection to use, must not be {@literal null}.
          * @return {@literal this} {@link MockDataSourceBuilder}.
          */
-        public MockDataSourceBuilder singletonConnection(MockConnection connection) {
+        public MockDataSourceBuilder singletonConnection(MockSession connection) {
             return withConnectionSupplier(cp -> connection);
         }
 
         /**
-         * Configure the builder to return the provided {@link MockConnection}.
+         * Configure the builder to return the provided {@link MockSession}.
          *
          * @return {@literal this} {@link MockDataSourceBuilder}.
          */
-        public MockDataSourceBuilder withConnectionSupplier(Function<Map<ConnectionProperty, Object>, MockConnection> connectionSupplier) {
+        public MockDataSourceBuilder withConnectionSupplier(Function<Map<SessionProperty, Object>, MockSession> connectionSupplier) {
 
             this.connectionSupplier = connectionSupplier;
             return this;

@@ -15,9 +15,10 @@
  */
 package io.r2dbc.adba;
 
+import io.r2dbc.adba.mock.MockTransaction;
 import io.r2dbc.spi.IsolationLevel;
-import jdk.incubator.sql2.Connection;
 import jdk.incubator.sql2.Operation;
+import jdk.incubator.sql2.Session;
 import jdk.incubator.sql2.Submission;
 import jdk.incubator.sql2.TransactionOutcome;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,7 @@ import static org.mockito.Mockito.*;
 class AdbaConnectionUnitTests {
 
     @Mock
-    Connection connection;
+    Session session;
     @Mock
     Operation operation;
     @Mock
@@ -53,7 +54,7 @@ class AdbaConnectionUnitTests {
 
     @BeforeEach
     void before() {
-        sut = AdbaConnection.create(connection);
+        sut = AdbaConnection.create(session);
     }
 
     @Test
@@ -61,31 +62,33 @@ class AdbaConnectionUnitTests {
 
         sut.beginTransaction().as(StepVerifier::create).verifyComplete();
 
-        verifyZeroInteractions(connection);
+        verifyZeroInteractions(session);
     }
 
     @Test
     void commitTransaction() {
 
-        when(connection.commit()).thenReturn(CompletableFuture.completedFuture(TransactionOutcome.COMMIT));
+        MockTransaction mockTransaction = new MockTransaction();
+        when(session.transactionCompletion()).thenReturn(mockTransaction);
+        when(session.commitMaybeRollback(mockTransaction)).thenReturn(CompletableFuture.completedFuture(TransactionOutcome.COMMIT));
 
         sut.commitTransaction().as(StepVerifier::create).verifyComplete();
-        verify(connection).commit();
+        verify(session).commitMaybeRollback(mockTransaction);
     }
 
     @Test
     void rollbackTransaction() {
 
-        when(connection.rollback()).thenReturn(CompletableFuture.completedFuture(TransactionOutcome.COMMIT));
+        when(session.rollback()).thenReturn(CompletableFuture.completedFuture(TransactionOutcome.COMMIT));
 
         sut.rollbackTransaction().as(StepVerifier::create).verifyComplete();
-        verify(connection).rollback();
+        verify(session).rollback();
     }
 
     @Test
     void close() {
 
-        when(connection.closeOperation()).thenReturn(operation);
+        when(session.closeOperation()).thenReturn(operation);
         when(operation.submit()).thenReturn(submission);
         when(submission.getCompletionStage()).thenReturn(CompletableFuture.completedFuture(null));
 

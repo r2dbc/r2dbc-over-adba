@@ -22,10 +22,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.LongConsumer;
 import java.util.function.Predicate;
 import java.util.logging.Logger;
 import java.util.stream.Collector;
@@ -43,14 +43,14 @@ import java.util.stream.Collector;
  *
  * @author Mark Paluch
  */
-public class MockConnection implements Connection {
+public class MockSession implements Session {
 
-    private final List<ConnectionLifecycleListener> listeners = new ArrayList<>();
+    private final List<SessionLifecycleListener> listeners = new ArrayList<>();
     private final List<CreationListener<?>> operationCreationListener = new ArrayList<>();
     private final List<Map.Entry<String, Operation<?>>> operations = new ArrayList<>();
 
-    private final Map<ConnectionProperty, Object> connectionProperties;
-    private final MockOperation<Void> connectOperation = new MockOperation<Void>().onSubmit(() -> setConnectionLifecycle(Lifecycle.OPEN));
+    private final Map<SessionProperty, Object> connectionProperties;
+    private final MockOperation<Void> attachOperation = new MockOperation<Void>().onSubmit(() -> setConnectionLifecycle(Lifecycle.ATTACHED));
     private final MockOperation<Void> closeOperation = new MockOperation<Void>().onSubmit(() -> setConnectionLifecycle(Lifecycle.CLOSED));
     private final MockOperation<Object> catchOperation = new MockOperation<>();
     private final MockOperation<TransactionOutcome> endTransactionOperation = new MockOperation<>();
@@ -59,19 +59,19 @@ public class MockConnection implements Connection {
     private MockTransaction transaction = new MockTransaction();
 
     /**
-     * Creates a new {@link MockConnection}.
+     * Creates a new {@link MockSession}.
      */
-    public MockConnection() {
+    public MockSession() {
         this(Collections.emptyMap());
     }
 
     /**
-     * Creates a new {@link MockConnection} given {@code connectionProperties}.
+     * Creates a new {@link MockSession} given {@code connectionProperties}.
      */
-    public MockConnection(Map<ConnectionProperty, Object> connectionProperties) {
+    public MockSession(Map<SessionProperty, Object> connectionProperties) {
 
         this.connectionProperties = connectionProperties;
-        setConnectionLifecycle(Lifecycle.NEW_INACTIVE);
+        setConnectionLifecycle(Lifecycle.NEW);
 
         registerOnCreate(it -> true, (sql, operation) -> operations.add(new Map.Entry<>() {
 
@@ -93,8 +93,8 @@ public class MockConnection implements Connection {
     }
 
     @Override
-    public MockOperation<Void> connectOperation() {
-        return connectOperation;
+    public MockOperation<Void> attachOperation() {
+        return attachOperation;
     }
 
     @Override
@@ -113,26 +113,21 @@ public class MockConnection implements Connection {
     }
 
     @Override
-    public MockTransaction transaction() {
-        return transaction;
-    }
-
-    @Override
-    public MockConnection registerLifecycleListener(ConnectionLifecycleListener listener) {
+    public MockSession registerLifecycleListener(SessionLifecycleListener listener) {
 
         this.listeners.add(listener);
         return this;
     }
 
     @Override
-    public MockConnection deregisterLifecycleListener(ConnectionLifecycleListener listener) {
+    public MockSession deregisterLifecycleListener(SessionLifecycleListener listener) {
 
         this.listeners.remove(listener);
         return this;
     }
 
     @Override
-    public Lifecycle getConnectionLifecycle() {
+    public Lifecycle getSessionLifecycle() {
         return lifecycle;
     }
 
@@ -141,9 +136,9 @@ public class MockConnection implements Connection {
      *
      * @param lifecycle
      */
-    public MockConnection setConnectionLifecycle(Lifecycle lifecycle) {
+    public MockSession setConnectionLifecycle(Lifecycle lifecycle) {
 
-        for (ConnectionLifecycleListener listener : listeners) {
+        for (SessionLifecycleListener listener : listeners) {
             listener.lifecycleEvent(this, this.lifecycle, lifecycle);
 
         }
@@ -153,38 +148,19 @@ public class MockConnection implements Connection {
     }
 
     @Override
-    public MockConnection abort() {
+    public MockSession abort() {
         setConnectionLifecycle(Lifecycle.ABORTING);
         return this;
     }
 
     @Override
-    public Map<ConnectionProperty, Object> getProperties() {
+    public Map<SessionProperty, Object> getProperties() {
         return connectionProperties;
     }
 
     @Override
     public ShardingKey.Builder shardingKeyBuilder() {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public MockConnection requestHook(Consumer<Long> request) {
-        return this;
-    }
-
-    @Override
-    public MockConnection activate() {
-
-        setConnectionLifecycle(Lifecycle.OPEN);
-        return this;
-    }
-
-    @Override
-    public MockConnection deactivate() {
-
-        setConnectionLifecycle(Lifecycle.INACTIVE);
-        return this;
     }
 
     @Override
@@ -200,16 +176,6 @@ public class MockConnection implements Connection {
     @Override
     public OperationGroup<Object, Object> conditional(CompletionStage<Boolean> condition) {
         throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public MockSubmission<Object> submitHoldingForMoreMembers() {
-        return new MockSubmission<>(CompletableFuture.completedFuture(new Object()));
-    }
-
-    @Override
-    public MockSubmission<Object> releaseProhibitingMoreMembers() {
-        return new MockSubmission<>(CompletableFuture.completedFuture(new Object()));
     }
 
     @Override
@@ -258,7 +224,12 @@ public class MockConnection implements Connection {
     }
 
     @Override
-    public MockOperation<TransactionOutcome> endTransactionOperation(Transaction trans) {
+    public TransactionCompletion transactionCompletion() {
+        return transaction;
+    }
+
+    @Override
+    public Operation<TransactionOutcome> endTransactionOperation(TransactionCompletion trans) {
 
         endTransactionOperation.completeWith(trans.isRollbackOnly() ? TransactionOutcome.ROLLBACK : TransactionOutcome.COMMIT);
 
@@ -286,8 +257,8 @@ public class MockConnection implements Connection {
     }
 
     @Override
-    public Submission<Object> submit() {
-        throw new UnsupportedOperationException();
+    public MockSubmission<Object> submit() {
+        return new MockOperation<>().submit();
     }
 
     /**
@@ -295,9 +266,9 @@ public class MockConnection implements Connection {
      *
      * @param type     filter predicate to filter callbacks for operations that are assignable to {@link Class type}.
      * @param listener callback listener.
-     * @return {@literal this} {@link MockConnection}.
+     * @return {@literal this} {@link MockSession}.
      */
-    public <T extends Operation<?>> MockConnection registerOnCreate(Class<? super T> type, BiConsumer<String, T> listener) {
+    public <T extends Operation<?>> MockSession registerOnCreate(Class<? super T> type, BiConsumer<String, T> listener) {
         this.operationCreationListener.add(new CreationListener<>(type::isInstance, it -> true, listener));
         return this;
     }
@@ -305,13 +276,18 @@ public class MockConnection implements Connection {
     /**
      * Register a {@link BiConsumer listener} that is called whenever a SQL {@link Operation} is created matching the given {@link Predicate SQL string predicate}.
      *
-     * @param type     SQL predicate.
-     * @param listener callback listener.
-     * @return {@literal this} {@link MockConnection}.
+     * @param sqlPredicate SQL predicate.
+     * @param listener     callback listener.
+     * @return {@literal this} {@link MockSession}.
      */
-    public <T extends Operation<?>> MockConnection registerOnCreate(Predicate<String> sqlPredicate, BiConsumer<String, T> listener) {
+    public <T extends Operation<?>> MockSession registerOnCreate(Predicate<String> sqlPredicate, BiConsumer<String, T> listener) {
         this.operationCreationListener.add(new CreationListener<>(it -> true, sqlPredicate, listener));
         return this;
+    }
+
+    @Override
+    public Session requestHook(LongConsumer request) {
+        return null;
     }
 
     private <T extends Operation<?>> T newOperation(String sql, T operation) {

@@ -20,9 +20,9 @@ import io.r2dbc.spi.Result;
 import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
 import io.r2dbc.spi.Statement;
-import jdk.incubator.sql2.Connection;
 import jdk.incubator.sql2.ParameterizedRowCountOperation;
 import jdk.incubator.sql2.ParameterizedRowOperation;
+import jdk.incubator.sql2.Session;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -35,7 +35,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collector.Characteristics;
 
 /**
- * R2DBC wrapper for a {@link jdk.incubator.sql2.Connection ADBA Connection}. Statements are executed late and lazily on
+ * R2DBC wrapper for a {@link jdk.incubator.sql2.Session ADBA Connection}. Statements are executed late and lazily on
  * interaction with {@link Result#getRowsUpdated()} or {@link Result#map(BiFunction)} methods. Currently supported
  * operations are:
  * <ul>
@@ -49,13 +49,13 @@ class AdbaStatement implements Statement<AdbaStatement> {
 
     private final Bindings bindings = new Bindings();
 
-    private final jdk.incubator.sql2.Connection connection;
+    private final jdk.incubator.sql2.Session session;
 
     private final String sql;
 
-    private AdbaStatement(Connection connection, String sql) {
+    private AdbaStatement(Session session, String sql) {
 
-        this.connection = connection;
+        this.session = session;
         this.sql = sql;
     }
 
@@ -141,18 +141,18 @@ class AdbaStatement implements Statement<AdbaStatement> {
     }
 
     /**
-     * Creates a {@link AdbaStatement} given {@link Connection} and {@code sql}.
+     * Creates a {@link AdbaStatement} given {@link Session} and {@code sql}.
      *
-     * @param connection must not be {@literal null}.
-     * @param sql        must not be {@literal null}.
+     * @param session must not be {@literal null}.
+     * @param sql     must not be {@literal null}.
      * @return the {@link AdbaStatement} for {@link Connection} and {@code sql}
      */
-    static AdbaStatement create(Connection connection, String sql) {
+    static AdbaStatement create(Session session, String sql) {
 
-        Assert.notNull(connection, "Connection must not be null!");
+        Assert.notNull(session, "Session must not be null!");
         Assert.notNull(sql, "SQL must not be null!");
 
-        return new AdbaStatement(connection, sql);
+        return new AdbaStatement(session, sql);
     }
 
     /**
@@ -165,7 +165,7 @@ class AdbaStatement implements Statement<AdbaStatement> {
 
             return AdbaUtils.submitLater(() -> {
 
-                ParameterizedRowCountOperation<Number> countOperation = connection.rowCountOperation(sql);
+                ParameterizedRowCountOperation<Number> countOperation = session.rowCountOperation(sql);
 
                 return bindings.getCurrent().bind(countOperation).apply(jdk.incubator.sql2.Result.RowCount::getCount);
             }).map(Number::intValue);
@@ -175,26 +175,26 @@ class AdbaStatement implements Statement<AdbaStatement> {
         public <T> Publisher<T> map(BiFunction<Row, RowMetadata, ? extends T> f) {
 
             Collector<jdk.incubator.sql2.Result.RowColumn, List<T>, List<T>> collector = Collector.of(ArrayList::new,
-                (objects, o) -> {
+                    (objects, o) -> {
 
 
-                    AdbaRow row = AdbaRow.create(o);
-                    T mapped = f.apply(row, row);
+                        AdbaRow row = AdbaRow.create(o);
+                        T mapped = f.apply(row, row);
 
-                    if (mapped == null) {
-                        return;
-                    }
+                        if (mapped == null) {
+                            return;
+                        }
 
-                    objects.add(mapped);
-                }, (left, right) -> {
-                    left.addAll(right);
-                    return left;
-                }, it -> it, Characteristics.IDENTITY_FINISH);
+                        objects.add(mapped);
+                    }, (left, right) -> {
+                        left.addAll(right);
+                        return left;
+                    }, it -> it, Characteristics.IDENTITY_FINISH);
 
             return AdbaUtils.submitLater(() -> {
 
-                ParameterizedRowOperation<List<T>> rowOperation = connection.<List<T>>rowOperation(sql).fetchSize(100)
-                    .collect(collector);
+                ParameterizedRowOperation<List<T>> rowOperation = session.<List<T>>rowOperation(sql).fetchSize(100)
+                        .collect(collector);
                 return bindings.getCurrent().bind(rowOperation);
             }).flatMapIterable(Function.identity());
         }

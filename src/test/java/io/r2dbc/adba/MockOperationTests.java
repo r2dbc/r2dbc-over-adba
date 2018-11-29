@@ -27,7 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for operation execution using {@link io.r2dbc.adba.mock.MockConnection} and operation mocks.
+ * Tests for operation execution using {@link MockSession} and operation mocks.
  *
  * @author Mark Paluch
  */
@@ -37,7 +37,7 @@ class MockOperationTests {
     void shouldExecuteRowOperation() {
 
         MockDataSource dataSource = MockDataSource.newSingletonMock();
-        MockConnection connection = dataSource.getConnection();
+        MockSession session = dataSource.getSession();
 
         List<MockRowColumn> resultset = ResultBuilder.builder() //
                 .withColumn("col", AdbaType.VARCHAR) //
@@ -45,7 +45,7 @@ class MockOperationTests {
                 .withRow("foo").withRow("bar") //
                 .build();
 
-        connection.registerOnCreate(MockParameterizedRowOperation.class, (String sql, MockParameterizedRowOperation<Object> op) -> {
+        session.registerOnCreate(MockParameterizedRowOperation.class, (String sql, MockParameterizedRowOperation<Object> op) -> {
             op.completeWith(resultset);
         });
 
@@ -65,9 +65,9 @@ class MockOperationTests {
     void shouldExecuteCountOperation() {
 
         MockDataSource dataSource = MockDataSource.newSingletonMock();
-        MockConnection connection = dataSource.getConnection();
+        MockSession session = dataSource.getSession();
 
-        connection.registerOnCreate(MockParameterizedRowCountOperation.class, (sql, op) -> {
+        session.registerOnCreate(MockParameterizedRowCountOperation.class, (sql, op) -> {
             op.setRowCount(100);
         });
 

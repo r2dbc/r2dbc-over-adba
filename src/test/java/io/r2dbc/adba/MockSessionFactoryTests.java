@@ -15,9 +15,9 @@
  */
 package io.r2dbc.adba;
 
-import io.r2dbc.adba.mock.MockConnection;
 import io.r2dbc.adba.mock.MockDataSource;
-import jdk.incubator.sql2.Connection;
+import io.r2dbc.adba.mock.MockSession;
+import jdk.incubator.sql2.Session;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
 
@@ -28,26 +28,26 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * @author Mark Paluch
  */
-class MockConnectionFactoryTests {
+class MockSessionFactoryTests {
 
     @Test
     void shouldConnectSuccessfully() {
 
 
         MockDataSource dataSource = MockDataSource.newSingletonMock();
-        MockConnection connection = dataSource.getConnection();
+        MockSession connection = dataSource.getSession();
 
         StepVerifier.create(AdbaAdapter.fromDataSource(dataSource).create()).expectNextCount(1).verifyComplete();
 
-        assertThat(connection.getConnectionLifecycle()).isEqualTo(Connection.Lifecycle.OPEN);
+        assertThat(connection.getSessionLifecycle()).isEqualTo(Session.Lifecycle.ATTACHED);
     }
 
     @Test
     void connectShouldFail() {
 
         MockDataSource dataSource = MockDataSource.newSingletonMock();
-        MockConnection connection = dataSource.getConnection();
-        connection.connectOperation().completeWithError(new IllegalStateException());
+        MockSession connection = dataSource.getSession();
+        connection.attachOperation().completeWithError(new IllegalStateException());
 
         StepVerifier.create(AdbaAdapter.fromDataSource(dataSource).create()).consumeErrorWith(e -> {
             assertThat(e).isInstanceOf(AdbaException.class).hasCauseInstanceOf(IllegalStateException.class);

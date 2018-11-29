@@ -17,8 +17,8 @@ package io.r2dbc.adba;
 
 import io.r2dbc.spi.ConnectionFactory;
 import io.r2dbc.spi.ConnectionFactoryMetadata;
-import jdk.incubator.sql2.Connection;
 import jdk.incubator.sql2.DataSource;
+import jdk.incubator.sql2.Session;
 import jdk.incubator.sql2.Submission;
 import reactor.core.publisher.Mono;
 
@@ -54,18 +54,18 @@ class AdbaConnectionFactory implements ConnectionFactory {
      * Create a {@link Mono} from the {@link jdk.incubator.sql2.Operation ConnectOperation}.
      *
      * @return
-     * @see jdk.incubator.sql2.Connection#connectOperation
+     * @see jdk.incubator.sql2.Session#connectOperation
      */
     @Override
     public Mono<AdbaConnection> create() {
 
         return Mono.defer(() -> {
 
-            Connection connection = dataSource.builder().build();
-            connection.submitHoldingForMoreMembers();
-            Submission<Void> submission = connection.connectOperation().submit();
+            Session session = dataSource.builder().build();
+            session.submit();
+            Submission<Void> submission = session.attachOperation().submit();
 
-            return Mono.fromCompletionStage(submission.getCompletionStage()).thenReturn(AdbaConnection.create(connection));
+            return Mono.fromCompletionStage(submission.getCompletionStage()).thenReturn(AdbaConnection.create(session));
         }).onErrorMap(AdbaUtils.exceptionMapper());
     }
 

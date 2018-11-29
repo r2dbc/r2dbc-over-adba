@@ -15,14 +15,14 @@
  */
 package io.r2dbc.adba.mock;
 
-import jdk.incubator.sql2.Transaction;
+import jdk.incubator.sql2.TransactionCompletion;
 
 /**
  * Mock implementation of {@link Transaction}.
  *
  * @author Mark Paluch
  */
-public class MockTransaction implements Transaction {
+public class MockTransaction implements TransactionCompletion {
 
     private boolean rollbackOnly;
 
