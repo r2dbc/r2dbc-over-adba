@@ -38,8 +38,8 @@ public class MockOperation<T> implements Operation<T>, PrimitiveOperation<T> {
     private Consumer<Throwable> handler = t -> {
     };
     private Duration timeout = Duration.ZERO;
-    private Throwable throwableToThrow;
-    private T outcome;
+    Throwable throwableToThrow;
+    T outcome;
 
     @Override
     public MockOperation<T> onError(Consumer<Throwable> handler) {

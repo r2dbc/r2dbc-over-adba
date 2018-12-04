@@ -15,15 +15,15 @@
  */
 package io.r2dbc.adba.mock;
 
-import jdk.incubator.sql2.Operation;
-import jdk.incubator.sql2.ParameterizedRowOperation;
-import jdk.incubator.sql2.Result;
-import jdk.incubator.sql2.SqlType;
+import jdk.incubator.sql2.*;
+import reactor.util.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Flow;
+import java.util.concurrent.SubmissionPublisher;
 import java.util.function.Consumer;
 import java.util.stream.Collector;
 
@@ -32,10 +32,12 @@ import java.util.stream.Collector;
  *
  * @author Mark Paluch
  */
-public class MockParameterizedRowOperation<T> extends SqlAwareMockOperation<T> implements ParameterizedRowOperation<T> {
+public class MockParameterizedRowOperation<T> extends SqlAwareMockOperation<T> implements ParameterizedRowOperation<T>, ParameterizedRowPublisherOperation<T> {
 
     private final Parameters parameters = new Parameters();
     private final List<Result.RowColumn> rowColumns = new ArrayList<>();
+    @Nullable
+    private Flow.Subscriber<? super Result.RowColumn> subscriber;
     private Long fetchSize;
 
     @Override
@@ -91,11 +93,38 @@ public class MockParameterizedRowOperation<T> extends SqlAwareMockOperation<T> i
         return this;
     }
 
+    @Override
+    public MockSubmission<T> submit() {
+
+        if (subscriber != null) {
+
+            SubmissionPublisher<Result.RowColumn> publisher = new SubmissionPublisher<>();
+            publisher.subscribe(subscriber);
+
+
+            if (throwableToThrow != null) {
+                publisher.closeExceptionally(throwableToThrow);
+            } else {
+                rowColumns.forEach(publisher::submit);
+                publisher.close();
+            }
+        }
+
+        return super.submit();
+    }
+
     /**
      * @return the configured fetch size.
      */
     public Long getFetchSize() {
         return this.fetchSize;
+    }
+
+    @Override
+    public ParameterizedRowPublisherOperation<T> subscribe(Flow.Subscriber<? super Result.RowColumn> subscriber, CompletionStage<? extends T> result) {
+
+        this.subscriber = subscriber;
+        return this;
     }
 
     @Override

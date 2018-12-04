@@ -215,7 +215,7 @@ public class MockSession implements Session {
 
     @Override
     public <R> ParameterizedRowPublisherOperation<R> rowPublisherOperation(String sql) {
-        throw new UnsupportedOperationException();
+        return newOperation(sql, new MockParameterizedRowOperation<>());
     }
 
     @Override

@@ -21,18 +21,22 @@ import io.r2dbc.spi.Row;
 import io.r2dbc.spi.RowMetadata;
 import io.r2dbc.spi.Statement;
 import jdk.incubator.sql2.ParameterizedRowCountOperation;
-import jdk.incubator.sql2.ParameterizedRowOperation;
+import jdk.incubator.sql2.ParameterizedRowPublisherOperation;
 import jdk.incubator.sql2.Session;
 import org.reactivestreams.Publisher;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
+import reactor.core.publisher.EmitterProcessor;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Flow;
 import java.util.function.BiFunction;
-import java.util.function.Function;
-import java.util.stream.Collector;
-import java.util.stream.Collector.Characteristics;
+
+import static jdk.incubator.sql2.Result.RowColumn;
+import static jdk.incubator.sql2.Result.RowCount;
 
 /**
  * R2DBC wrapper for a {@link jdk.incubator.sql2.Session ADBA Connection}. Statements are executed late and lazily on
@@ -158,45 +162,108 @@ class AdbaStatement implements Statement<AdbaStatement> {
     /**
      * R2DBC wrapper for ADBA operations.
      */
-    private class AdbaResult implements Result {
+    class AdbaResult implements Result {
 
         @Override
         public Publisher<Integer> getRowsUpdated() {
 
             return AdbaUtils.submitLater(() -> {
 
+
                 ParameterizedRowCountOperation<Number> countOperation = session.rowCountOperation(sql);
 
-                return bindings.getCurrent().bind(countOperation).apply(jdk.incubator.sql2.Result.RowCount::getCount);
+                return bindings.getCurrent().bind(countOperation).apply(RowCount::getCount);
             }).map(Number::intValue);
         }
 
         @Override
         public <T> Publisher<T> map(BiFunction<Row, RowMetadata, ? extends T> f) {
 
-            Collector<jdk.incubator.sql2.Result.RowColumn, List<T>, List<T>> collector = Collector.of(ArrayList::new,
-                    (objects, o) -> {
+            EmitterProcessor<RowColumn> rowProcessor = EmitterProcessor.create(true);
 
 
-                        AdbaRow row = AdbaRow.create(o);
-                        T mapped = f.apply(row, row);
+            return Flux.defer(() -> {
 
-                        if (mapped == null) {
-                            return;
-                        }
+                ParameterizedRowPublisherOperation<Object> publisherOperation = session.rowPublisherOperation(sql);
 
-                        objects.add(mapped);
-                    }, (left, right) -> {
-                        left.addAll(right);
-                        return left;
-                    }, it -> it, Characteristics.IDENTITY_FINISH);
+                ParameterizedRowPublisherOperation<Object> subscribe =
+                        bindings.getCurrent().bind(publisherOperation);
 
-            return AdbaUtils.submitLater(() -> {
+                subscribe.subscribe(new FlowSubscriberAdapter<>(rowProcessor), new CompletableFuture<>()).submit();
 
-                ParameterizedRowOperation<List<T>> rowOperation = session.<List<T>>rowOperation(sql).fetchSize(100)
-                        .collect(collector);
-                return bindings.getCurrent().bind(rowOperation);
-            }).flatMapIterable(Function.identity());
+                return rowProcessor;
+            }).<T>handle((rowColumn, sink) -> {
+
+                AdbaRow row = AdbaRow.create(rowColumn);
+
+                try {
+
+                    T mapped = f.apply(row, row);
+                    if (mapped == null) {
+                        return;
+                    }
+
+                    sink.next(mapped);
+                } catch (Exception e) {
+                    sink.error(e);
+                }
+            }).onErrorMap(AdbaUtils.exceptionMapper());
+        }
+    }
+
+    /**
+     * Delegates Reactive Streams {@link Subscription} calls to a {@link Flow.Subscription}.
+     */
+    static class FlowSubscriptionAdapter implements Subscription {
+
+        private final Flow.Subscription subscription;
+
+        FlowSubscriptionAdapter(Flow.Subscription subscription) {
+            this.subscription = subscription;
+        }
+
+        @Override
+        public void request(long n) {
+            subscription.request(n);
+        }
+
+        @Override
+        public void cancel() {
+            subscription.cancel();
+        }
+    }
+
+    /**
+     * Delegates {@link Flow.Subscriber} calls to a Reactive Streams {@link Subscriber}.
+     *
+     * @param <T>
+     */
+    static class FlowSubscriberAdapter<T> implements Flow.Subscriber<T> {
+
+        private final Subscriber<T> delegate;
+
+        FlowSubscriberAdapter(Subscriber<T> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void onSubscribe(Flow.Subscription subscription) {
+            delegate.onSubscribe(new FlowSubscriptionAdapter(subscription));
+        }
+
+        @Override
+        public void onNext(T item) {
+            delegate.onNext(item);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            delegate.onError(throwable);
+        }
+
+        @Override
+        public void onComplete() {
+            delegate.onComplete();
         }
     }
 }

@@ -41,16 +41,4 @@ class MockSessionFactoryTests {
 
         assertThat(connection.getSessionLifecycle()).isEqualTo(Session.Lifecycle.ATTACHED);
     }
-
-    @Test
-    void connectShouldFail() {
-
-        MockDataSource dataSource = MockDataSource.newSingletonMock();
-        MockSession connection = dataSource.getSession();
-        connection.attachOperation().completeWithError(new IllegalStateException());
-
-        StepVerifier.create(AdbaAdapter.fromDataSource(dataSource).create()).consumeErrorWith(e -> {
-            assertThat(e).isInstanceOf(AdbaException.class).hasCauseInstanceOf(IllegalStateException.class);
-        }).verify();
-    }
 }
