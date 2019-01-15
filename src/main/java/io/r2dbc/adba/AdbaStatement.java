@@ -49,7 +49,7 @@ import static jdk.incubator.sql2.Result.RowCount;
  *
  * @author Mark Paluch
  */
-class AdbaStatement implements Statement<AdbaStatement> {
+class AdbaStatement implements Statement {
 
     private final Bindings bindings = new Bindings();
 
