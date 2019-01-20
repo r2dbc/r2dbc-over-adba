@@ -19,6 +19,7 @@ import io.r2dbc.adba.mock.*;
 import io.r2dbc.spi.Result;
 import jdk.incubator.sql2.AdbaType;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -79,5 +80,19 @@ class MockOperationTests {
         result //
                 .as(StepVerifier::create) //
                 .expectNext(100).verifyComplete();
+    }
+
+    @Test
+    void shouldNotSupportGeneratedKeys() {
+
+        MockDataSource dataSource = MockDataSource.newSingletonMock();
+
+        Flux<? extends Result> result = Mono.from(AdbaAdapter.fromDataSource(dataSource).create()) //
+                .flatMapMany(it -> it.createStatement("SELECT * FROM foo").returnGeneratedValues().execute());
+
+        result //
+                .as(StepVerifier::create) //
+                .expectError(UnsupportedOperationException.class) //
+                .verify();
     }
 }

@@ -144,6 +144,11 @@ class AdbaStatement implements Statement {
         return Mono.just(new AdbaResult());
     }
 
+    @Override
+    public Statement returnGeneratedValues(String... columns) {
+        throw new UnsupportedOperationException("Unsupported SPI operation. Use SQL to retrieve generated keys for a modifying action");
+    }
+
     /**
      * Creates a {@link AdbaStatement} given {@link Session} and {@code sql}.
      *
