@@ -40,7 +40,7 @@ import java.util.function.Supplier;
  * </pre>
  * <p>
  * Mainly for internal use within the framework; consider
- * <a href="http://commons.apache.org/proper/commons-lang/">Apache's Commons Lang</a> for a more comprehensive suite of
+ * <a href="https://commons.apache.org/proper/commons-lang/">Apache's Commons Lang</a> for a more comprehensive suite of
  * {@code String} utilities. Imported from Spring Framework.
  */
 abstract class Assert {
