@@ -1,4 +1,8 @@
-# Reactive Relational Database Connectivity over ADBA Implementation
+# Reactive Relational Database Connectivity over ADBA Experiment
+
+:warning: **This project is currently no longer maintained given the lack in movement in the ADBA project.** :warning:
+
+We might reconsider reviving this project once ADBA has made significant progress.
 
 This project contains the [ADBA][a] Adapter of the [R2DBC SPI][r] that allows usage of ADBA drivers by using the R2DBC SPI. This implementation is not intended to be used directly, but rather to be used as the backing implementation for a humane client library to delegate to.
 
