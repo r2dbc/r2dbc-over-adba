@@ -1,6 +1,6 @@
 # Reactive Relational Database Connectivity over ADBA Experiment
 
-:warning: **This project is currently no longer maintained given the lack in movement in the ADBA project.** :warning:
+:warning: **This project is no longer being actively maintained as the ADBA efforts were terminated.** :warning:
 
 We might reconsider reviving this project once ADBA has made significant progress.
 
